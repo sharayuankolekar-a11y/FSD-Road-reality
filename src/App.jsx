@@ -1,7 +1,7 @@
 import { BrowserRouter, Route, Routes } from "react-router-dom";
 
 import Navbar from "./components/Navbar";
-import Footer from "./components/footer";
+import Footer from "./components/Footer";
 
 import Home from "./pages/Home";
 import Explore from "./pages/Explore";
@@ -17,24 +17,39 @@ export default function App() {
       <div className="flex min-h-screen flex-col">
         <Navbar />
 
-        <div className="flex-1">
+        <main className="flex-1">
           <Routes>
+            {/* Public pages */}
             <Route path="/" element={<Home />} />
             <Route path="/explore" element={<Explore />} />
             <Route path="/hazards/:id" element={<HazardDetails />} />
-            <Route path="/report" element={<ReportHazard />} />
+
+            {/* Authentication pages */}
             <Route path="/login" element={<Auth mode="login" />} />
             <Route path="/signup" element={<Auth mode="signup" />} />
-            <Route path="/my-reports" element={<SimplePage type="reports" />} />
-            <Route path="/profile" element={<SimplePage type="profile" />} />
+
+            {/* User pages */}
+            <Route path="/report" element={<ReportHazard />} />
+            <Route
+              path="/my-reports"
+              element={<SimplePage type="reports" />}
+            />
+            <Route
+              path="/profile"
+              element={<SimplePage type="profile" />}
+            />
             <Route
               path="/notifications"
               element={<SimplePage type="notifications" />}
             />
+
+            {/* Admin page */}
             <Route path="/admin" element={<AdminDashboard />} />
+
+            {/* 404 page */}
             <Route path="*" element={<SimplePage type="notfound" />} />
           </Routes>
-        </div>
+        </main>
 
         <Footer />
       </div>
