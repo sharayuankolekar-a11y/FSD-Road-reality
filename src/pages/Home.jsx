@@ -1,3 +1,4 @@
+import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import {
   ArrowRight,
@@ -14,10 +15,14 @@ import {
   TriangleAlert,
   Upload,
   Users,
+  AlertTriangle,
+  Search,
+  Loader2
 } from "lucide-react";
 
 import HazardCard from "../components/HazardCard";
-import { hazards } from "../services/mockData";
+import { getHazards, getNearbyHazards } from "../services/hazardService";
+import { useUserLocation } from "../hooks/useUserLocation";
 
 const categoryItems = [
   {
@@ -78,32 +83,68 @@ const workflowSteps = [
   },
 ];
 
-const previewReports = [
-  {
-    type: "Pothole",
-    location: "MG Road, Bengaluru",
-    severity: "High",
-    time: "4 min ago",
-    icon: "🕳️",
-    color: "border-[#C95C41]",
-    labelColor: "bg-[#FBE5DD] text-[#9D4936]",
-  },
-  {
-    type: "Waterlogging",
-    location: "Brigade Road, Bengaluru",
-    severity: "Medium",
-    time: "12 min ago",
-    icon: "🌊",
-    color: "border-[#B9771D]",
-    labelColor: "bg-[#FFF2D7] text-[#8C5B0F]",
-  },
-];
-
 export default function Home() {
+  const {
+    location,
+    latitude,
+    longitude,
+    placeName,
+    loading: locLoading,
+    manualLoading,
+    error: locError,
+    permissionState,
+    requestLocation,
+    setManualLocation
+  } = useUserLocation(true);
+
+  const [reports, setReports] = useState([]);
+  const [loadingReports, setLoadingReports] = useState(true);
+  const [fetchError, setFetchError] = useState(null);
+  const [manualInput, setManualInput] = useState("");
+  const [showManualForm, setShowManualForm] = useState(false);
+  const [manualError, setManualError] = useState(null);
+
+  // Fetch hazards based on current real or manual location
+  useEffect(() => {
+    async function loadData() {
+      setLoadingReports(true);
+      setFetchError(null);
+      try {
+        let res;
+        if (latitude && longitude) {
+          res = await getNearbyHazards(latitude, longitude, 50);
+        } else {
+          res = await getHazards();
+        }
+        setReports(res.data || []);
+      } catch (err) {
+        console.error("Error loading home reports:", err);
+        setFetchError("Road Reality server is unavailable. Please try again.");
+      } finally {
+        setLoadingReports(false);
+      }
+    }
+    loadData();
+  }, [latitude, longitude]);
+
+  const handleManualSubmit = async (e) => {
+    e.preventDefault();
+    if (!manualInput.trim()) return;
+    setManualError(null);
+    try {
+      await setManualLocation(manualInput);
+      setShowManualForm(false);
+      setManualInput("");
+    } catch (err) {
+      setManualError(err.message || "Could not find that location. Try another city or area.");
+    }
+  };
+
+  const previewReports = reports.slice(0, 2);
+
   return (
     <main className="page paper-texture overflow-hidden">
-      {/* Hero */}
-
+      {/* Hero Section */}
       <section className="relative overflow-hidden bg-[#202624] text-[#FCFAF5]">
         <div className="map-grid-texture absolute inset-0 opacity-80" />
 
@@ -112,7 +153,6 @@ export default function Home() {
 
         <div className="relative mx-auto grid max-w-7xl gap-12 px-4 py-14 sm:px-6 md:py-20 lg:grid-cols-[1fr_0.95fr] lg:items-center lg:px-8 lg:py-24">
           {/* Hero text */}
-
           <div className="animate-rise">
             <div className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-3 py-2 text-xs font-bold tracking-[0.14em] text-[#E5B45D]">
               <span className="live-dot" aria-hidden="true" />
@@ -165,9 +205,8 @@ export default function Home() {
           </div>
 
           {/* Hero road intelligence preview */}
-
           <div className="animate-rise-delay relative mx-auto w-full max-w-xl lg:max-w-none">
-            <div className="relative min-h-[420px] overflow-hidden rounded-[28px] border border-white/10 bg-[#33403B] shadow-2xl shadow-black/30 sm:min-h-[470px]">
+            <div className="relative min-h-[440px] overflow-hidden rounded-[28px] border border-white/10 bg-[#33403B] shadow-2xl shadow-black/30 sm:min-h-[480px]">
               <div className="map-grid-texture absolute inset-0 opacity-60" />
 
               <div className="hero-route -left-36 -top-24" />
@@ -177,25 +216,102 @@ export default function Home() {
               <div className="absolute right-[23%] top-[47%] h-2 w-2 rounded-full bg-[#86B898] shadow-[0_0_0_7px_rgba(134,184,152,0.13)]" />
               <div className="absolute bottom-[22%] left-[35%] h-2 w-2 rounded-full bg-[#D8705C] shadow-[0_0_0_7px_rgba(216,112,92,0.16)]" />
 
-              <div className="absolute left-5 right-5 top-5 flex items-center justify-between">
-                <div className="rounded-xl border border-white/10 bg-[#202624]/80 px-3 py-2 backdrop-blur">
+              {/* Location Header - NEAR YOU */}
+              <div className="absolute left-5 right-5 top-5 flex items-center justify-between z-10">
+                <div className="rounded-xl border border-white/10 bg-[#202624]/85 px-4 py-2.5 backdrop-blur-md min-w-[200px]">
                   <p className="text-[10px] font-bold tracking-[0.15em] text-[#DDB4A6]">
                     NEAR YOU
                   </p>
-                  <p className="mt-0.5 text-sm font-bold text-white">
-                    Bengaluru, Karnataka
+                  <p className="mt-0.5 text-sm font-extrabold text-white truncate max-w-[240px]">
+                    {locLoading ? (
+                      "Finding your location..."
+                    ) : manualLoading ? (
+                      "Searching location..."
+                    ) : placeName ? (
+                      placeName
+                    ) : (
+                      "Location required"
+                    )}
                   </p>
                 </div>
 
-                <div className="rounded-xl border border-white/10 bg-[#202624]/80 p-2.5 backdrop-blur">
-                  <Navigation
-                    size={18}
-                    className="text-[#E5B45D]"
-                    aria-label="Current location"
-                  />
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setShowManualForm(!showManualForm)}
+                    className="rounded-xl border border-white/10 bg-[#202624]/85 px-3 py-2 text-xs font-bold text-[#D7DED8] backdrop-blur-md hover:bg-white/10 transition"
+                    title="Enter location manually"
+                  >
+                    Change
+                  </button>
+                  <button
+                    onClick={requestLocation}
+                    disabled={locLoading}
+                    className="rounded-xl border border-white/10 bg-[#202624]/85 p-2.5 backdrop-blur-md hover:bg-white/10 transition"
+                    title="Use GPS current location"
+                  >
+                    <Navigation
+                      size={18}
+                      className={locLoading ? "animate-spin text-[#E5B45D]" : "text-[#E5B45D]"}
+                      aria-label="Current GPS location"
+                    />
+                  </button>
                 </div>
               </div>
 
+              {/* Manual Location Entry Form Overlay */}
+              {showManualForm && (
+                <div className="absolute top-[22%] left-5 right-5 z-30 rounded-2xl border border-white/20 bg-[#202624]/95 p-4 backdrop-blur-md shadow-2xl">
+                  <p className="text-xs font-bold text-[#E5B45D]">Enter your city, area, or landmark:</p>
+                  <form onSubmit={handleManualSubmit} className="mt-2 flex gap-2">
+                    <input
+                      className="input py-2 px-3 text-xs flex-1 bg-white/10 border-white/20 text-white placeholder-slate-400 focus:bg-white/15"
+                      placeholder="e.g. Mangaluru, Indiranagar, MG Road"
+                      value={manualInput}
+                      onChange={(e) => setManualInput(e.target.value)}
+                    />
+                    <button
+                      type="submit"
+                      disabled={manualLoading}
+                      className="btn btn-primary text-xs py-2 px-3 flex items-center gap-1"
+                    >
+                      {manualLoading ? <Loader2 size={14} className="animate-spin" /> : "Set"}
+                    </button>
+                  </form>
+                  {manualError && (
+                    <p className="mt-2 text-xs font-medium text-red-400">{manualError}</p>
+                  )}
+                </div>
+              )}
+
+              {/* Location Required Banner if automatic location is not available and no manual location */}
+              {!location && !locLoading && !manualLoading && (
+                <div className="absolute top-[26%] left-5 right-5 rounded-2xl border border-amber-500/40 bg-[#202624]/95 p-5 text-center backdrop-blur-md shadow-xl z-20">
+                  <AlertTriangle className="mx-auto text-amber-400 mb-2" size={28} />
+                  <p className="text-sm font-bold text-white">Location access is required</p>
+                  <p className="text-xs text-[#C7CEC8] mt-1 leading-relaxed">
+                    Road Reality needs your location to show nearby road hazards.
+                  </p>
+
+                  <div className="mt-4 flex flex-col sm:flex-row justify-center gap-2">
+                    <button
+                      onClick={requestLocation}
+                      className="btn btn-primary text-xs py-2 px-4 justify-center"
+                    >
+                      <Navigation size={14} />
+                      Allow GPS Location
+                    </button>
+                    <button
+                      onClick={() => setShowManualForm(true)}
+                      className="btn border border-white/20 bg-white/10 text-white hover:bg-white/20 text-xs py-2 px-4 justify-center"
+                    >
+                      <Search size={14} />
+                      Enter location manually
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Road conditions summary box */}
               <div className="absolute bottom-5 left-5 right-5 rounded-2xl border border-white/10 bg-[#202624]/85 p-4 backdrop-blur-md">
                 <div className="flex items-center justify-between">
                   <div>
@@ -203,12 +319,12 @@ export default function Home() {
                       ROAD CONDITIONS
                     </p>
                     <p className="mt-1 text-sm font-semibold text-white">
-                      3 active reports nearby
+                      {location ? `${reports.length} active report${reports.length === 1 ? '' : 's'} nearby` : 'Select location to view hazards'}
                     </p>
                   </div>
 
                   <span className="rounded-full bg-[#476C55] px-2.5 py-1 text-xs font-bold text-white">
-                    Updated now
+                    {location ? "Updated now" : "Location needed"}
                   </span>
                 </div>
 
@@ -217,83 +333,81 @@ export default function Home() {
                 <div className="mt-3 flex items-center justify-between text-xs text-[#C7CEC8]">
                   <span className="inline-flex items-center gap-1.5">
                     <Route size={14} aria-hidden="true" />
-                    MG Road corridor
+                    {placeName || "Location not set"}
                   </span>
 
-                  <span>12.9716° N · 77.5946° E</span>
+                  <span>{location ? (location.isManual ? "Manual location" : "Current location") : "GPS required"}</span>
                 </div>
               </div>
 
               {/* Floating live report cards */}
+              {location && previewReports.length > 0 && previewReports[0] && (
+                <div className="animate-float-slow absolute left-4 top-[31%] w-[220px] rounded-2xl border border-white/70 bg-[#FCFAF5] p-3.5 text-[#202624] shadow-xl shadow-black/20 sm:left-7 sm:w-[245px]">
+                  <div className="flex items-start gap-3">
+                    <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-[#FBE5DD] text-lg">
+                      ⚠️
+                    </span>
 
-              <div className="animate-float-slow absolute left-4 top-[31%] w-[220px] rounded-2xl border border-white/70 bg-[#FCFAF5] p-3.5 text-[#202624] shadow-xl shadow-black/20 sm:left-7 sm:w-[245px]">
-                <div className="flex items-start gap-3">
-                  <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-[#FBE5DD] text-lg">
-                    {previewReports[0].icon}
-                  </span>
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2">
+                        <p className="truncate text-sm font-extrabold">
+                          {previewReports[0].category}
+                        </p>
 
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-2">
-                      <p className="truncate text-sm font-extrabold">
-                        {previewReports[0].type}
+                        <span className="rounded-full bg-[#FBE5DD] px-2 py-0.5 text-[10px] font-bold text-[#9D4936] capitalize">
+                          {previewReports[0].severity}
+                        </span>
+                      </div>
+
+                      <p className="mt-1 truncate text-xs text-[#66706B]">
+                        {previewReports[0].address || placeName}
                       </p>
 
-                      <span
-                        className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${previewReports[0].labelColor}`}
-                      >
-                        {previewReports[0].severity}
-                      </span>
+                      <p className="mt-2 flex items-center gap-1 text-[11px] font-semibold text-[#476C55]">
+                        <BadgeCheck size={13} aria-hidden="true" />
+                        {previewReports[0].verificationStatus}
+                      </p>
                     </div>
-
-                    <p className="mt-1 truncate text-xs text-[#66706B]">
-                      {previewReports[0].location}
-                    </p>
-
-                    <p className="mt-2 flex items-center gap-1 text-[11px] font-semibold text-[#476C55]">
-                      <BadgeCheck size={13} aria-hidden="true" />
-                      Verified · {previewReports[0].time}
-                    </p>
                   </div>
                 </div>
-              </div>
+              )}
 
-              <div className="animate-float-delayed absolute right-3 top-[52%] w-[205px] rounded-2xl border border-white/70 bg-white p-3.5 text-[#202624] shadow-xl shadow-black/20 sm:right-7 sm:w-[225px]">
-                <div className="flex items-start gap-3">
-                  <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-[#E3F0F0] text-lg">
-                    {previewReports[1].icon}
-                  </span>
+              {location && previewReports.length > 1 && previewReports[1] && (
+                <div className="animate-float-delayed absolute right-3 top-[52%] w-[205px] rounded-2xl border border-white/70 bg-white p-3.5 text-[#202624] shadow-xl shadow-black/20 sm:right-7 sm:w-[225px]">
+                  <div className="flex items-start gap-3">
+                    <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-[#E3F0F0] text-lg">
+                      ⚠️
+                    </span>
 
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-2">
-                      <p className="truncate text-sm font-extrabold">
-                        {previewReports[1].type}
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2">
+                        <p className="truncate text-sm font-extrabold">
+                          {previewReports[1].category}
+                        </p>
+
+                        <span className="rounded-full bg-[#FFF2D7] px-2 py-0.5 text-[10px] font-bold text-[#8C5B0F] capitalize">
+                          {previewReports[1].severity}
+                        </span>
+                      </div>
+
+                      <p className="mt-1 truncate text-xs text-[#66706B]">
+                        {previewReports[1].address || placeName}
                       </p>
 
-                      <span
-                        className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${previewReports[1].labelColor}`}
-                      >
-                        {previewReports[1].severity}
-                      </span>
+                      <p className="mt-2 flex items-center gap-1 text-[11px] font-semibold text-[#66706B]">
+                        <Clock3 size={13} aria-hidden="true" />
+                        Reported recently
+                      </p>
                     </div>
-
-                    <p className="mt-1 truncate text-xs text-[#66706B]">
-                      {previewReports[1].location}
-                    </p>
-
-                    <p className="mt-2 flex items-center gap-1 text-[11px] font-semibold text-[#66706B]">
-                      <Clock3 size={13} aria-hidden="true" />
-                      Reported {previewReports[1].time}
-                    </p>
                   </div>
                 </div>
-              </div>
+              )}
             </div>
           </div>
         </div>
       </section>
 
       {/* Trust strip */}
-
       <section className="border-y border-[#E8DDCA] bg-[#F4EFE4]">
         <div className="mx-auto grid max-w-7xl gap-5 px-4 py-6 sm:grid-cols-3 sm:px-6 lg:px-8">
           <div className="flex items-center gap-3">
@@ -344,7 +458,6 @@ export default function Home() {
       </section>
 
       {/* Categories */}
-
       <section className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
         <div className="max-w-2xl">
           <p className="text-xs font-bold tracking-[0.16em] text-[#B85C45]">
@@ -388,7 +501,6 @@ export default function Home() {
       </section>
 
       {/* How it works */}
-
       <section className="warm-grid-texture border-y border-[#E8DDCA] bg-[#F4EFE4]">
         <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
           <div className="flex flex-col justify-between gap-6 md:flex-row md:items-end">
@@ -447,7 +559,6 @@ export default function Home() {
       </section>
 
       {/* Recent reports */}
-
       <section className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <div className="max-w-2xl">
@@ -456,7 +567,7 @@ export default function Home() {
             </p>
 
             <h2 className="font-editorial mt-3 text-3xl font-extrabold text-[#202624] sm:text-4xl">
-              Recent road reports
+              Recent road reports {placeName ? `near ${placeName}` : ''}
             </h2>
 
             <p className="mt-3 leading-7 text-[#66706B]">
@@ -474,15 +585,37 @@ export default function Home() {
           </Link>
         </div>
 
-        <div className="mt-8 grid gap-5 md:grid-cols-2 lg:grid-cols-3">
-          {hazards.slice(0, 3).map((hazard) => (
-            <HazardCard key={hazard.id} hazard={hazard} />
-          ))}
-        </div>
+        {fetchError && (
+          <div className="mt-6 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800 flex items-center gap-2">
+            <AlertTriangle size={18} />
+            {fetchError}
+          </div>
+        )}
+
+        {loadingReports ? (
+          <div className="mt-8 grid gap-5 md:grid-cols-2 lg:grid-cols-3">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="h-64 animate-pulse rounded-2xl bg-slate-200" />
+            ))}
+          </div>
+        ) : reports.length === 0 ? (
+          <div className="mt-8 card p-8 text-center text-slate-500">
+            <p className="font-bold text-slate-700">No active hazards reported near this location.</p>
+            <p className="text-sm mt-1">Be the first to share a road condition update!</p>
+            <Link to="/report" className="btn btn-primary mt-4 inline-flex">
+              Report a Hazard
+            </Link>
+          </div>
+        ) : (
+          <div className="mt-8 grid gap-5 md:grid-cols-2 lg:grid-cols-3">
+            {reports.slice(0, 6).map((hazard) => (
+              <HazardCard key={hazard.id} hazard={hazard} />
+            ))}
+          </div>
+        )}
       </section>
 
       {/* Community impact */}
-
       <section className="mx-auto max-w-7xl px-4 pb-16 sm:px-6 lg:px-8">
         <div className="overflow-hidden rounded-[24px] bg-[#476C55] text-white">
           <div className="grid gap-8 px-6 py-10 sm:px-10 lg:grid-cols-[1fr_0.9fr] lg:items-center lg:px-12 lg:py-14">
@@ -512,14 +645,16 @@ export default function Home() {
 
             <div className="grid grid-cols-2 gap-3">
               <div className="rounded-2xl border border-white/15 bg-white/10 p-5 backdrop-blur-sm">
-                <p className="text-3xl font-extrabold">128</p>
+                <p className="text-3xl font-extrabold">{reports.length}</p>
                 <p className="mt-1 text-sm text-[#D6E8D8]">
                   Reports shared
                 </p>
               </div>
 
               <div className="rounded-2xl border border-white/15 bg-white/10 p-5 backdrop-blur-sm">
-                <p className="text-3xl font-extrabold">34</p>
+                <p className="text-3xl font-extrabold">
+                  {reports.filter(r => r.status !== 'resolved').length}
+                </p>
                 <p className="mt-1 text-sm text-[#D6E8D8]">
                   Active hazards
                 </p>

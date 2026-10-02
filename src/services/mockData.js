@@ -1,5 +1,13 @@
-export const hazards=[
-{id:'RR-1024',category:'Pothole',imageUrl:'https://images.squarespace-cdn.com/content/v1/573365789f726693272dc91a/1704992146415-CI272VYXPALWT52IGLUB/AdobeStock_201419293.jpeg?format=1500w',latitude:12.9719,longitude:77.5937,address:'MG Road, Bengaluru',severity:'high',trafficImpact:'yes',description:'Large pothole in the left lane; two-wheelers are swerving around it.',status:'verified',verificationStatus:'Verified',reportedAt:'2026-10-02T11:10:00+05:30',updatedAt:'2026-10-02T12:05:00+05:30',reporter:{id:'u1',name:'Aditi Rao'}},
-{id:'RR-1025',category:'Waterlogging',imageUrl:'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRrtjTlLuV9az8SvFhgqEGEjM5zeZeGWlWV22pOMs8VroJ86sR2cSn_MvgV&s=10',latitude:12.9754,longitude:77.5991,address:'Brigade Road, Bengaluru',severity:'critical',trafficImpact:'yes',description:'Water has pooled across both lanes after heavy rain.',status:'under_review',verificationStatus:'Community reported',reportedAt:'2026-10-02T15:18:00+05:30',updatedAt:'2026-10-02T15:18:00+05:30',reporter:{id:'u2',name:'Rahul K'}},
-{id:'RR-1026',category:'Fallen Tree',imageUrl:'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQgIcK0I8vprHqDgfB99d7EQS2OqZ2HL5-dWCKo_O34hdkDIQ0S5O4fyq0&s=10',latitude:12.9665,longitude:77.5905,address:'Kasturba Road, Bengaluru',severity:'high',trafficImpact:'partial',description:'A fallen branch is narrowing the carriageway.',status:'in_progress',verificationStatus:'Verified',reportedAt:'2026-10-02T09:42:00+05:30',updatedAt:'2026-10-02T13:31:00+05:30',reporter:{id:'u3',name:'Meera S'}}]
-export const categories=['Pothole','Waterlogging','Fallen Tree','Road Debris','Broken Streetlight','Blocked Road','Accident','Construction','Other']
+export const hazards = [];
+
+export const categories = [
+  'Pothole',
+  'Waterlogging',
+  'Fallen Tree',
+  'Road Debris',
+  'Broken Streetlight',
+  'Blocked Road',
+  'Accident',
+  'Construction',
+  'Other'
+];
