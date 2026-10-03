@@ -1,4 +1,4 @@
-const base = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api';
+const base = import.meta.env.VITE_API_BASE_URL || '/api';
 
 /**
  * Normalizes backend DB reports to match frontend component prop names.
